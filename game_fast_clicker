@@ -1,0 +1,168 @@
+import sys
+import pygame
+from random import randint
+
+# Настройка pygame
+pygame.init()  #Обязательная инициализация
+clock = pygame.time.Clock()  # Создаем объект Clock
+FPS = 60  # Константа ограничения времени
+
+# Устанавливаем нужные цвета в виде RGB-констант
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+
+# Задаем в виде кортежа размер экрана с помощью set_mode((ширина, высота))
+screen = pygame.display.set_mode((600, 400), 1)
+screen.fill(WHITE)
+
+""" класс прямоугольник """
+class Area:
+    def __init__(self, x=0, y=0, width=10, height=10, color=None):
+        self.rect = pygame.Rect(x,y,width,height)  # создаем объект прямоугольник
+        self.fill_color = color
+
+    def color(self, new_color):
+        self.fill_color = new_color
+
+    # рисуем заполненный цветом прямоугольник
+    def fill(self):
+        pygame.draw.rect(screen, self.fill_color, self.rect)  # рисуем прямоугольник (на главном экране, задаем цвет и расположение заимствуем у rect)
+
+    # обводка существующего прямоугольника
+    def outline(self, rect_color, thick):  # thick - толщина обводки
+        pygame.draw.rect(screen, rect_color, self.rect, thick)
+
+    # узнаем попал ли клик мышью по карточке
+    def collidepoint(self, x, y):
+        return self.rect.collidepoint(x, y)
+
+
+"""Класс надпись - наследует от класса Area свойства и добавляет текст"""
+class Label(Area):
+    # Метод установки текста
+    def set_text(self, text, size=12, text_color=RED, shift_x=0, shift_y=0):
+        # Устанавливаем шрифт и сразу с помощью render создаем текст
+        self.text = pygame.font.SysFont('None', size).render(text, True, text_color)  # в render(текст для отображения, сглаживание текста - да, цвет текста)
+
+    # рисуем прямоугольник с текстом
+    def draw(self, shift_x=0, shift_y=0):
+        self.fill()  # берем отрисовку прямоугольника из класса-родителя
+        screen.blit(self.text, (self.rect.x + shift_x, self.rect.y + shift_y)) # прикрепляем текст к экрану со сдвигом вправо и вниз
+
+cards = [] # создаем пустой список
+number_of_cards = 5 # количество карточек
+x = 70 # начальное положение по х
+
+for i in range(number_of_cards):
+   new_card = Label(x, 170, 70, 100, GREEN)
+   new_card.set_text('Жми', 24)
+   new_card.draw(15, 40)  # Передаем сдвиг по x, y
+   new_card.outline(BLACK, 6)  # обводка (цвет, толщина)
+   cards.append(new_card) # добавляем в список cards
+   x = x + 100  # дополнительный отступ между карточками
+
+"""Размещение таймера и счета игрока"""
+# установка текста "Время" на экран
+time_text = Label(70, 20, 100, 40, WHITE)  # создаем прямоугольник, взятого из класса Area
+time_text.set_text('Время:', 30, RED)  # обращаемся к методу set_text из подкласса Label
+time_text.draw(0, 0)
+
+# Установка таймера на экран
+timer = Label(70, 55, 100, 40, WHITE)
+timer.set_text('0', 30, RED)
+timer.draw(30, 0)
+
+# Установка текста "Счет" на экран
+score_text = Label(440, 20, 100, 40, WHITE)
+score_text.set_text('Счет:', 30, RED)
+score_text.draw(48, 0)
+
+# Установка игрового счета на экран
+score = Label(440, 55, 100, 40, WHITE)
+score.set_text('0', 30, RED)
+score.draw(70, 0)
+
+
+""" Создание собсвтвенного события времени"""
+start_time = 0  # задаем начальное значение таймера
+timer_event = pygame.USEREVENT + 0  # создаем пользовательское событие
+pygame.time.set_timer(timer_event, 1000)  # задем правило вызова события - каждую секунду
+
+wait = 0 # переменная-счетчик для смены текста на карточках
+points = 0 # переменная для посчета очков
+gameplay = True
+# Запуск игрового цикла
+while True:
+    if gameplay:
+        """Отрисовка карточек и оторжание кликов"""
+        #click = randint(1, number_of_cards)
+        if wait == 0:  # если wait = 0, то ставим 40 тиков и уменьшаем их на 1, пока не дойдем до 0 и повторяем.
+            click = randint(1, number_of_cards)
+            wait = 50 # столько тиков надпись будет на одном месте
+            for i in range(number_of_cards):  # берем число карточек
+                cards[i].color(GREEN)  # задаем цвет карточке
+                if i+1 == click:  # если 0+1 (потому что индекс списков начинается с 0, а нужна карточка из рандома) выпадает случайная крточка
+                    cards[i].draw(15, 40)  # рисуем карточку с надписью
+                else:
+                    cards[i].fill()  # иначе закрашиваем карточку в пустой цвет
+                cards[i].outline(BLACK, 6)  # задаем обводку
+        else:
+            wait = wait - 1
+        # Проверяем событие выхода
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            # Обработка кликов по карточкам
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # если произошел клик левой кнопкой мыши
+                x, y = event.pos  # вычисляем позицию клика
+                # ищем в какую карту попал клик
+                for i in range(number_of_cards):
+                    if cards[i].collidepoint(x, y):
+                        if i + 1 == click:  # если на карте есть надпись перекрашиваем в синий
+                            cards[i].color(BLUE)
+                            points += 1  # прибавляем очко, если попали по карточке с надписью
+                        else:  # иначе перекрашиваем в красный
+                            cards[i].color(BLACK)
+                            points -= 1  # убираем очко, если промахнулись
+                        cards[i].fill() # закрашиваем карточку в пустой цвет
+                        cards[i].outline(BLACK, 6)  # рисуем обводку
+                        score.set_text(str(points), 30, RED)
+                        score.draw(70, 0)
+            # выигрыш и проигрыш
+            if event.type == timer_event:
+                start_time = start_time + 1
+                timer.set_text(str(start_time), 30, RED)
+                timer.draw(30, 0)
+                # условие проигрыша
+                if start_time == 10:
+                    timer_event = 0  # останавливаем таймер
+                    gameplay = False  # останавливаем цикл
+                    # экран проигрыша
+                    if gameplay == False:
+                        lose = Label(0, 0, 600, 400, WHITE)
+                        lose.set_text('Время Вышло!', 60, RED)
+                        lose.draw(100, 150)
+                # условие выигрыша
+                if points >= 5:
+                    timer_event = 0  # останавливаем таймер
+                    gameplay = False  # останавливаем цикл
+                    # экран выигрыша
+                    if gameplay == False:
+                        win = Label(0, 0, 600, 400, WHITE)
+                        win.set_text('Ты победил!', 60, RED)
+                        win.draw(100, 180)
+    else:
+        # Проверяем событие выхода
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+    # ограничиваем цикл до 60 кадров в секунду
+    clock.tick(FPS)
+    # Обновляем экран
+    pygame.display.update()
